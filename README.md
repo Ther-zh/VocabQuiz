@@ -209,7 +209,6 @@ quiz/
 如果遇到问题或有任何建议，请通过以下方式联系：
 
 - **Issue**：在GitHub仓库中创建Issue
-- **Email**：\[<your-email@example.com>]
 
 ## 许可证
 
