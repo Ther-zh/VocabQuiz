@@ -1145,6 +1145,36 @@
             try {
                 await openDB();
                 await refreshLibraryList();
+                
+                // 检查是否有词库数据
+                const libraries = await getAllLibraries();
+                if (libraries.length === 0) {
+                    // 尝试加载words.json文件
+                    try {
+                        const response = await fetch('words.json');
+                        if (response.ok) {
+                            const wordData = await response.json();
+                            if (Array.isArray(wordData) && wordData.length > 0) {
+                                // 创建默认词库
+                                const defaultLibraryId = await createLibrary('默认词库', '从words.json加载的单词');
+                                // 导入单词到默认词库
+                                await addWordsToLibrary(defaultLibraryId, wordData);
+                                // 更新词库列表
+                                await refreshLibraryList();
+                                await refreshLibrarySelect();
+                                // 切换到默认词库
+                                await switchToLibrary(defaultLibraryId, '默认词库');
+                                showToast('已从words.json加载默认词库！', 'success');
+                            }
+                        }
+                    } catch (fetchError) {
+                        console.error('加载words.json失败:', fetchError);
+                        // 加载失败时使用默认单词
+                        words = [...defaultWords];
+                        showToast('加载words.json失败，使用默认单词！', 'info');
+                    }
+                }
+                
                 showToast('数据库初始化成功！', 'success');
             } catch (error) {
                 console.error('数据库初始化失败:', error);
