@@ -908,15 +908,17 @@
                 <!-- 开始测试按钮 -->
                 <div id="startSection" style="text-align: center; margin: 30px 0;">
                     <button class="btn btn-primary" onclick="startTest()" style="padding: 15px 30px; font-size: 18px;">开始测试</button>
+                    <button class="btn btn-success" onclick="restartTest()" style="padding: 15px 30px; font-size: 18px; margin-left: 15px; display: none;">重新测试</button>
                 </div>
                 
                 <div class="controls" id="controlsSection">
-                    <button class="btn btn-info" onclick="previousWord()">上一个</button>
-                    <button class="btn btn-success" onclick="showChinese()">查看中文</button>
-                    <button class="btn btn-primary" onclick="knownWord()">认识，下一个</button>
-                    <button class="btn btn-secondary" onclick="unknownWord()">不认识，标记复习</button>
-                    <button class="btn btn-info" onclick="skipWord()">跳过</button>
-                    <button class="btn btn-warning" onclick="returnToMainMode()">返回主模式</button>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 15px;">
+                        <button class="btn btn-info" onclick="previousWord()">上一个</button>
+                        <button class="btn btn-success" onclick="showChinese()">查看中文</button>
+                        <button class="btn btn-primary" onclick="knownWord()">认识，下一个</button>
+                        <button class="btn btn-secondary" onclick="unknownWord()">不认识，标记复习</button>
+                        <button class="btn btn-warning" onclick="returnToMainMode()">切换模式</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -953,7 +955,7 @@
                 <p>格式：每行一个单词，英文和中文用英文逗号分隔，例如：hello,你好 或直接粘贴JSON格式</p>
                 <div class="instructions" style="margin: 10px 0;">
                     <h4>JSON格式示例：</h4>
-                    <pre style="background-color: #f5f5f5; padding: 10px; border-radius: 5px; font-size: 14px;">[
+                    <pre style="background-color: #f5f5f5; padding: 10px; border-radius: 5px; font-size: 14px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">[
   {"english": "hello", "chinese": "你好"},
   {"english": "world", "chinese": "世界"}
 ]</pre>
@@ -1029,6 +1031,30 @@
             { english: 'account', chinese: '账户；解释' }
         ];
         
+        // 内置的完整单词列表（从words.json复制）
+        const builtInWords = [
+            { "english": "range", "chinese": "范围，幅度；" },
+            { "english": "episode", "chinese": "一个事件；插曲，连续剧的一集" },
+            { "english": "abuse", "chinese": "滥用；虐待；辱骂" },
+            { "english": "rear", "chinese": "后部；后方" },
+            { "english": "condemn", "chinese": "谴责；判" },
+            { "english": "vocal", "chinese": "直言不讳的；嗓音的" },
+            { "english": "oppose", "chinese": "反对" },
+            { "english": "previous", "chinese": "以前的；" },
+            { "english": "wander", "chinese": "漫游；偏离正道；走神" },
+            { "english": "supervise", "chinese": "监督，管理" },
+            { "english": "mortal", "chinese": "终有一死的；致命的；不共戴天的" },
+            { "english": "anxiety", "chinese": "焦虑；渴望" },
+            { "english": "shuttle", "chinese": "短程穿梭运行的飞机；航天飞机；梭子" },
+            { "english": "enrich", "chinese": "充实，使丰富；使富裕" },
+            { "english": "alliance", "chinese": "联盟" },
+            { "english": "generally", "chinese": "通常；普遍地" },
+            { "english": "advantage", "chinese": "优点；好处" },
+            { "english": "exceptional", "chinese": "杰出的；异常的" },
+            { "english": "hinder", "chinese": "妨碍" },
+            { "english": "caution", "chinese": "小心；注意" }
+        ];
+        
         // 状态变量
         let words = [...defaultWords];
         let currentIndex = 0;
@@ -1037,6 +1063,8 @@
         let shuffledWords = [];
         let isReviewMode = false; // 是否处于复习模式
         let currentPage = 'quiz'; // 当前活跃页面
+        let reviewModeTotalWords = 0; // 复习模式下的总单词数，用于进度条计算
+        let testModeProgress = 0; // 测试模式的进度，用于返回时恢复
         
         // IndexedDB 配置
         const DB_NAME = 'WordQuizDB';
@@ -1124,8 +1152,18 @@
                 const transaction = db.transaction(storeNames, mode);
                 const result = callback(transaction);
                 
-                transaction.oncomplete = () => resolve(result);
-                transaction.onerror = (event) => reject(event.target.error);
+                // 处理callback返回Promise的情况
+                if (result instanceof Promise) {
+                    result.then(value => {
+                        transaction.oncomplete = () => resolve(value);
+                        transaction.onerror = (event) => reject(event.target.error);
+                    }).catch(error => {
+                        reject(error);
+                    });
+                } else {
+                    transaction.oncomplete = () => resolve(result);
+                    transaction.onerror = (event) => reject(event.target.error);
+                }
             });
         }
         
@@ -1142,7 +1180,11 @@
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                 };
-                return store.add(library);
+                const request = store.add(library);
+                return new Promise((resolve, reject) => {
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
             });
         }
         
@@ -1361,10 +1403,11 @@
                         <div class="library-actions">
                             <button class="btn btn-sm btn-info" onclick="switchToLibrary(${library.id}, '${library.name}')">使用</button>
                             <button class="btn btn-sm btn-primary" onclick="openEditLibraryModal(${JSON.stringify(library).replace(/"/g, '&quot;')})">编辑</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteLibraryConfirm(${library.id})">删除</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteLibraryConfirm(${library.id})"><span style="font-size: 16px; font-weight: bold;">×</span></button>
                         </div>
                     </li>
                 `).join('');
+                showToast('词库列表已刷新！', 'success');
             } catch (error) {
                 console.error('刷新词库列表失败:', error);
                 showToast('刷新词库列表失败！', 'error');
@@ -1415,6 +1458,9 @@
                 init();
                 // 切换到测试页面
                 switchPage('quiz');
+                // 重置进度条
+                document.getElementById('progressBar').style.width = '0%';
+                document.getElementById('progressText').textContent = '0%';
             } catch (error) {
                 console.error('切换词库失败:', error);
                 showToast('切换词库失败！', 'error');
@@ -1449,37 +1495,25 @@
                 
                 if (libraries.length === 0) {
                     // 尝试加载words.json文件
+                    // 直接使用内置的完整单词列表
                     try {
-                        const response = await fetch('words.json');
-                        console.log('words.json请求状态:', response.status);
-                        if (response.ok) {
-                            const wordData = await response.json();
-                            console.log('words.json数据长度:', wordData.length);
-                            if (Array.isArray(wordData) && wordData.length > 0) {
-                                // 创建默认词库
-                                const defaultLibraryId = await createLibrary('默认词库', '从words.json加载的单词');
-                                console.log('创建的默认词库ID:', defaultLibraryId);
-                                // 导入单词到默认词库
-                                const addedCount = await addWordsToLibrary(defaultLibraryId, wordData);
-                                console.log('成功导入的单词数量:', addedCount);
-                                // 更新词库列表
-                                await refreshLibraryList();
-                                await refreshLibrarySelect();
-                                // 切换到默认词库
-                                await switchToLibrary(defaultLibraryId, '默认词库');
-                                showToast('已从words.json加载默认词库，共导入' + wordData.length + '个单词！', 'success');
-                            }
-                        } else {
-                            console.error('words.json请求失败:', response.statusText);
-                            // 加载失败时使用默认单词
-                            words = [...defaultWords];
-                            showToast('加载words.json失败，使用默认单词！', 'info');
-                        }
-                    } catch (fetchError) {
-                        console.error('加载words.json失败:', fetchError);
-                        // 加载失败时使用默认单词
+                        // 使用内置的builtInWords
+                        const wordData = builtInWords;
+                        // 创建默认词库
+                        const defaultLibraryId = await createLibrary('默认词库', '从内置单词列表加载');
+                        // 导入单词到默认词库
+                        const addedCount = await addWordsToLibrary(defaultLibraryId, wordData);
+                        // 更新词库列表
+                        await refreshLibraryList();
+                        await refreshLibrarySelect();
+                        // 切换到默认词库
+                        await switchToLibrary(defaultLibraryId, '默认词库');
+                        showToast('已从内置单词列表加载默认词库，共导入' + wordData.length + '个单词！', 'success');
+                    } catch (error) {
+                        console.error('加载内置单词列表失败:', error);
+                        // 最终使用默认单词
                         words = [...defaultWords];
-                        showToast('加载words.json失败，使用默认单词！', 'info');
+                        showToast('加载单词库失败，使用默认单词！', 'info');
                     }
                 } else {
                     // 先刷新词库列表，确保获取最新的词库数据
@@ -1511,16 +1545,48 @@
             knownCount = 0;
             reviewList = [];
             isReviewMode = false;
+            reviewModeTotalWords = 0;
             
-            // 尝试加载保存的数据
-            loadData();
+            // 重置localStorage数据，确保每次启动都是全新开始
+            localStorage.removeItem('quizData');
             
             updateStats();
             showCurrentWord();
         }
         
+        // 消息队列
+        let toastQueue = [];
+        let isProcessingQueue = false;
+        
         // 显示Toast消息
         function showToast(message, type = 'info', duration = 2000) {
+            // 将消息加入队列
+            toastQueue.push({ message, type, duration });
+            
+            // 如果队列未处理，开始处理
+            if (!isProcessingQueue) {
+                processToastQueue();
+            }
+        }
+        
+        // 处理消息队列
+        function processToastQueue() {
+            if (toastQueue.length === 0) {
+                isProcessingQueue = false;
+                return;
+            }
+            
+            isProcessingQueue = true;
+            const toastData = toastQueue.shift();
+            
+            createToast(toastData.message, toastData.type, toastData.duration, () => {
+                // 当前toast显示完成后，处理下一个
+                setTimeout(processToastQueue, 300);
+            });
+        }
+        
+        // 创建并显示toast
+        function createToast(message, type, duration, callback) {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -1534,22 +1600,44 @@
             // 隐藏并移除toast
             setTimeout(() => {
                 toast.classList.remove('show');
-                setTimeout(() => container.removeChild(toast), 300);
+                setTimeout(() => {
+                    if (container.contains(toast)) {
+                        container.removeChild(toast);
+                    }
+                    // 调用回调函数，通知队列可以处理下一个消息
+                    if (callback) {
+                        callback();
+                    }
+                }, 300);
             }, duration);
         }
         
         // 更新统计信息
         function updateStats() {
-            document.getElementById('totalWords').textContent = words.length;
-            document.getElementById('currentIndex').textContent = currentIndex + 1;
+            // 总单词数始终显示为原始单词列表的长度
+            const totalWords = words.length;
+            document.getElementById('totalWords').textContent = totalWords;
+            // 当前进度在复习模式下显示复习进度，测试模式下显示测试进度
+            document.getElementById('currentIndex').textContent = isReviewMode ? currentIndex + 1 : currentIndex + 1;
+            // 已掌握单词数保持不变
             document.getElementById('knownCount').textContent = knownCount;
+            // 需复习单词数显示当前复习列表长度
             document.getElementById('reviewCount').textContent = reviewList.length;
             updateReviewList();
             
             // 更新进度条
-            const total = words.length;
-            // 使用knownCount和reviewList.length的总和作为进度计算的依据
-            const processedCount = knownCount + reviewList.length;
+            const total = isReviewMode ? reviewModeTotalWords : totalWords;
+            // 确保processedCount不会超过total
+            let processedCount;
+            if (isReviewMode) {
+                // 复习模式下，进度基于当前索引
+                processedCount = currentIndex;
+            } else {
+                // 测试模式下，进度基于当前索引
+                processedCount = currentIndex;
+            }
+            // 强制限制processedCount的范围
+            processedCount = Math.max(0, Math.min(processedCount, total));
             // 当完成所有单词时，进度显示为100%
             let progress = 0;
             if (total > 0) {
@@ -1561,7 +1649,9 @@
                     progress = Math.min(Math.round((processedCount / total) * 100), 100);
                 }
             }
-            document.getElementById('progressText').textContent = `${progress}%`;
+            // 显示为x/总数格式
+            const displayText = total > 0 ? `${processedCount}/${total} (${progress}%)` : '0/0 (0%)';
+            document.getElementById('progressText').textContent = displayText;
             document.getElementById('progressBar').style.width = `${progress}%`;
         }
         
@@ -1571,9 +1661,13 @@
             if (isReviewMode) {
                 indicator.textContent = '复习模式';
                 indicator.style.backgroundColor = '#e74c3c';
+                indicator.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+                indicator.style.boxShadow = '0 4px 15px rgba(231, 76, 60, 0.4)';
             } else {
                 indicator.textContent = '测试模式';
                 indicator.style.backgroundColor = '#3498db';
+                indicator.style.background = 'linear-gradient(135deg, #3498db, #2980b9)';
+                indicator.style.boxShadow = '0 4px 15px rgba(52, 152, 219, 0.4)';
             }
         }
         
@@ -1582,13 +1676,25 @@
             updateModeIndicator();
             
             if (currentIndex >= shuffledWords.length) {
-                document.getElementById('wordDisplay').textContent = isReviewMode ? '复习完成！' : 'Quiz完成！';
+                if (isReviewMode) {
+                    document.getElementById('wordDisplay').textContent = '复习完成！';
+                    // 显示开始按钮，方便重新开始
+                    document.getElementById('startSection').style.display = 'block';
+                    document.getElementById('controlsSection').style.display = 'none';
+                    // 显示开始测试按钮，隐藏重新测试按钮
+                    document.querySelector('button[onclick="startTest()"]').style.display = 'inline-block';
+                    document.querySelector('button[onclick="restartTest()"]').style.display = 'none';
+                } else {
+                    document.getElementById('wordDisplay').textContent = 'Quiz完成！';
+                    // 显示开始按钮，方便重新测试
+                    document.getElementById('startSection').style.display = 'block';
+                    document.getElementById('controlsSection').style.display = 'none';
+                    // 显示重新测试按钮，隐藏开始测试按钮
+                    document.querySelector('button[onclick="startTest()"]').style.display = 'none';
+                    document.querySelector('button[onclick="restartTest()"]').style.display = 'inline-block';
+                }
                 document.getElementById('chineseDisplay').textContent = '';
                 document.getElementById('chineseDisplay').classList.remove('show');
-                
-                // 显示开始按钮，方便重新开始
-                document.getElementById('startSection').style.display = 'block';
-                document.getElementById('controlsSection').style.display = 'none';
                 // 更新进度条为100%
                 updateStats();
                 return;
@@ -1616,9 +1722,49 @@
                 return;
             }
             
-            // 重新初始化并开始测试
-            init();
+            // 如果当前在复习模式，退出复习模式并恢复测试进度
+            if (isReviewMode) {
+                isReviewMode = false;
+                reviewModeTotalWords = 0;
+                // 恢复测试模式的进度
+                shuffledWords = [...words].sort(() => Math.random() - 0.5);
+                currentIndex = testModeProgress;
+            } else if (currentIndex === 0 && knownCount === 0) {
+                // 只有在首次开始测试时才重新初始化
+                init();
+            }
+            
+            // 隐藏重新测试按钮，显示开始测试按钮
+            document.querySelector('button[onclick="startTest()"]').style.display = 'inline-block';
+            document.querySelector('button[onclick="restartTest()"]').style.display = 'none';
+            
+            updateStats();
+            showCurrentWord();
+            saveData();
             showToast('开始测试！', 'success');
+        }
+        
+        // 重新测试
+        function restartTest() {
+            if (words.length === 0) {
+                showToast('请先导入单词！', 'error');
+                return;
+            }
+            
+            // 重置测试状态
+            init();
+            isReviewMode = false;
+            reviewModeTotalWords = 0;
+            testModeProgress = 0;
+            
+            // 隐藏重新测试按钮，显示开始测试按钮
+            document.querySelector('button[onclick="startTest()"]').style.display = 'inline-block';
+            document.querySelector('button[onclick="restartTest()"]').style.display = 'none';
+            
+            updateStats();
+            showCurrentWord();
+            saveData();
+            showToast('重新测试开始！', 'success');
         }
         
         // 认识这个单词
@@ -1634,7 +1780,10 @@
                     reviewList.splice(indexInReview, 1);
                 }
             } else {
-                knownCount++;
+                // 确保knownCount不会超过总单词数
+                if (knownCount < words.length) {
+                    knownCount++;
+                }
             }
             currentIndex++;
             updateStats();
@@ -1645,17 +1794,25 @@
         // 不认识这个单词，标记复习
         function unknownWord() {
             if (!isReviewMode) {
-                reviewList.push(shuffledWords[currentIndex]);
+                const currentWord = shuffledWords[currentIndex];
+                // 检查单词是否已经在复习列表中
+                const isDuplicate = reviewList.some(word => 
+                    word.english === currentWord.english && 
+                    word.chinese === currentWord.chinese
+                );
+                if (!isDuplicate) {
+                    reviewList.push(currentWord);
+                }
+                currentIndex++;
+            } else {
+                // 复习模式下，将当前单词移到列表末尾，不增加进度条
+                const currentWord = shuffledWords[currentIndex];
+                // 从当前位置移除
+                shuffledWords.splice(currentIndex, 1);
+                // 添加到末尾
+                shuffledWords.push(currentWord);
+                // 不增加currentIndex，保持在当前位置
             }
-            currentIndex++;
-            updateStats();
-            showCurrentWord();
-            saveData();
-        }
-        
-        // 跳过当前单词
-        function skipWord() {
-            currentIndex++;
             updateStats();
             showCurrentWord();
             saveData();
@@ -1665,8 +1822,18 @@
         function previousWord() {
             if (currentIndex > 0) {
                 currentIndex--;
-                // 如果是认识的单词，需要减回去
-                if (!isReviewMode) {
+                // 检查当前单词是否在复习列表中
+                const currentWord = shuffledWords[currentIndex];
+                const indexInReview = reviewList.findIndex(word => 
+                    word.english === currentWord.english && 
+                    word.chinese === currentWord.chinese
+                );
+                if (indexInReview > -1 && !isReviewMode) {
+                    // 只有在非复习模式下，才从复习列表中移除单词
+                    // 如果单词在复习列表中，说明之前标记为不认识，移除它
+                    reviewList.splice(indexInReview, 1);
+                } else if (!isReviewMode) {
+                    // 如果单词不在复习列表中，且不是复习模式，说明之前标记为认识，需要减回去
                     knownCount = Math.max(0, knownCount - 1);
                 }
                 updateStats();
@@ -1682,19 +1849,48 @@
                 return;
             }
             
+            // 保存测试模式的进度
+            if (!isReviewMode) {
+                testModeProgress = currentIndex;
+            }
+            
             isReviewMode = true;
+            // 保存当前复习列表的长度，用于进度条计算
+            reviewModeTotalWords = reviewList.length;
+            // 打乱复习列表
             shuffledWords = [...reviewList].sort(() => Math.random() - 0.5);
             currentIndex = 0;
+            // 立即更新统计信息和显示
+            updateStats();
             showCurrentWord();
             saveData();
             showToast('开始复习！', 'success');
         }
         
-        // 返回主模式
+        // 切换模式
         function returnToMainMode() {
-            // 重新初始化并返回主模式
-            init();
-            showToast('已返回主模式！', 'info');
+            if (isReviewMode) {
+                // 从复习模式切换到测试模式
+                isReviewMode = false;
+                reviewModeTotalWords = 0;
+                // 恢复测试模式的进度
+                shuffledWords = [...words].sort(() => Math.random() - 0.5);
+                currentIndex = testModeProgress;
+                showToast('已切换到测试模式！', 'info');
+            } else {
+                // 从测试模式切换到复习模式（如果有需要复习的单词）
+                if (reviewList.length > 0) {
+                    startReview();
+                    return;
+                } else {
+                    showToast('暂无需要复习的单词！', 'info');
+                    return;
+                }
+            }
+            // 更新统计信息和显示
+            updateStats();
+            showCurrentWord();
+            saveData();
         }
         
         // 更新复习列表
