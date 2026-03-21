@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>英语单词Quiz</title>
+    <title>VocabQuiz</title>
     <style>
         /* 全局样式 */
         * {
@@ -847,7 +847,7 @@
     <!-- 导航栏 -->
     <nav class="navbar">
         <div class="nav-container">
-            <h1 class="nav-title">英语单词Quiz</h1>
+            <h1 class="nav-title">VocabQuiz</h1>
             <ul class="nav-menu">
                 <li class="nav-item"><a href="#" class="nav-link active" data-page="quiz">开始测试</a></li>
                 <li class="nav-item"><a href="#" class="nav-link" data-page="library">词库管理</a></li>
@@ -1067,7 +1067,7 @@
         let testModeProgress = 0; // 测试模式的进度，用于返回时恢复
         
         // IndexedDB 配置
-        const DB_NAME = 'WordQuizDB';
+        const DB_NAME = 'VocabQuizDB';
         const DB_VERSION = 1;
         const LIBRARY_STORE = 'libraries';
         const WORD_STORE = 'words';
@@ -1269,28 +1269,53 @@
             return executeTransaction([WORD_STORE, LIBRARY_STORE], 'readwrite', (transaction) => {
                 const wordStore = transaction.objectStore(WORD_STORE);
                 const libraryStore = transaction.objectStore(LIBRARY_STORE);
+                let addedCount = 0;
                 
-                // 添加单词
-                for (const word of words) {
-                    wordStore.add({ ...word, libraryId });
-                }
+                // 获取词库中已有的单词
+                const existingWords = new Set();
+                const index = wordStore.index('libraryId');
+                const cursorRequest = index.openCursor(libraryId);
                 
-                // 更新词库的单词数量
-                const libraryRequest = libraryStore.get(libraryId);
-                libraryRequest.onsuccess = (event) => {
-                    const library = event.target.result;
-                    if (library) {
-                        // 由于之前已经调用了clearWordsByLibraryId，所以新的单词数量就是words.length
-                        const updatedLibrary = { 
-                            ...library, 
-                            wordCount: words.length, 
-                            updatedAt: new Date().toISOString() 
-                        };
-                        libraryStore.put(updatedLibrary);
-                    }
-                };
-                
-                return words.length;
+                return new Promise((resolve, reject) => {
+                    cursorRequest.onsuccess = (event) => {
+                        const cursor = event.target.result;
+                        if (cursor) {
+                            existingWords.add(cursor.value.english.toLowerCase());
+                            cursor.continue();
+                        } else {
+                            // 所有现有单词已加载，开始添加新单词
+                            for (const word of words) {
+                                const englishLower = word.english.toLowerCase();
+                                if (!existingWords.has(englishLower)) {
+                                    wordStore.add({ ...word, libraryId });
+                                    existingWords.add(englishLower);
+                                    addedCount++;
+                                }
+                            }
+                            
+                            // 更新词库的单词数量
+                            const libraryRequest = libraryStore.get(libraryId);
+                            libraryRequest.onsuccess = (event) => {
+                                const library = event.target.result;
+                                if (library) {
+                                    // 新的单词数量是原有数量加上新添加的数量
+                                    const updatedLibrary = { 
+                                        ...library, 
+                                        wordCount: library.wordCount + addedCount, 
+                                        updatedAt: new Date().toISOString() 
+                                    };
+                                    libraryStore.put(updatedLibrary);
+                                }
+                            };
+                            
+                            resolve(addedCount);
+                        }
+                    };
+                    
+                    cursorRequest.onerror = (event) => {
+                        reject(event.target.error);
+                    };
+                });
             });
         }
         
@@ -2012,11 +2037,9 @@
             
             if (newWords.length > 0) {
                 try {
-                    // 清空当前词库的旧单词
-                    await clearWordsByLibraryId(parseInt(selectedLibraryId));
-                    // 添加新单词
-                    await addWordsToLibrary(parseInt(selectedLibraryId), newWords);
-                    showToast(`成功导入 ${newWords.length} 个单词到词库！`, 'success');
+                    // 增量添加新单词，避免重复
+                    const addedCount = await addWordsToLibrary(parseInt(selectedLibraryId), newWords);
+                    showToast(`成功导入 ${addedCount} 个单词到词库！`, 'success');
                     
                     // 更新词库列表
                     await refreshLibraryList();
@@ -2079,11 +2102,9 @@
                             return;
                         }
                         
-                        // 清空当前词库的旧单词
-                        await clearWordsByLibraryId(parseInt(selectedLibraryId));
-                        // 添加新单词
-                        await addWordsToLibrary(parseInt(selectedLibraryId), validWords);
-                        showToast(`成功导入 ${validWords.length} 个单词到词库！`, 'success');
+                        // 增量添加新单词，避免重复
+                        const addedCount = await addWordsToLibrary(parseInt(selectedLibraryId), validWords);
+                        showToast(`成功导入 ${addedCount} 个单词到词库！`, 'success');
                         
                         // 更新词库列表
                         await refreshLibraryList();
@@ -2129,11 +2150,9 @@
             }
             
             try {
-                // 清空当前词库的旧单词
-                await clearWordsByLibraryId(parseInt(selectedLibraryId));
-                // 添加默认单词
-                await addWordsToLibrary(parseInt(selectedLibraryId), defaultWords);
-                showToast(`成功加载 ${defaultWords.length} 个默认单词到词库！`, 'success');
+                // 增量添加默认单词，避免重复
+                const addedCount = await addWordsToLibrary(parseInt(selectedLibraryId), defaultWords);
+                showToast(`成功加载 ${addedCount} 个默认单词到词库！`, 'success');
                 
                 // 更新词库列表
                 await refreshLibraryList();
