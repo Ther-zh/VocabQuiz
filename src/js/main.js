@@ -133,6 +133,22 @@ window.toggleShortcutHelp = function() {
     }
 };
 
+// 显示收藏单词模态框
+window.showFavorites = function() {
+    // 动态导入 quiz 模块以使用其中的函数
+    import('./quiz.js').then(({ displayFavorites }) => {
+        displayFavorites();
+    }).catch(err => console.error('加载 quiz 模块失败:', err));
+};
+
+// 关闭收藏单词模态框
+window.closeFavoritesModal = function() {
+    const modal = document.getElementById('favoritesModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+};
+
 // 页面加载完成后初始化
 window.onload = async function() {
     await initApp();

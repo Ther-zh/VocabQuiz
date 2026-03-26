@@ -1,4 +1,4 @@
-import Chart from 'chart.js/auto';
+
 
 // 学习进度图表
 let progressChart = null;

@@ -629,3 +629,55 @@ export function exportWords() {
     
     showToast('单词列表已导出！', 'success');
 }
+
+// 显示收藏单词
+export async function displayFavorites() {
+    const modal = document.getElementById('favoritesModal');
+    const favoritesList = document.getElementById('favoritesList');
+    
+    if (!modal || !favoritesList) return;
+    
+    // 显示加载状态
+    favoritesList.innerHTML = '<div class="loading-state">加载中...</div>';
+    
+    try {
+        // 动态导入db模块和ui模块
+        const { getFavoriteWords, removeFromFavorites } = await import('./db.js');
+        const { showToast } = await import('./ui.js');
+        
+        // 获取所有收藏单词
+        const favoriteWords = await getFavoriteWords();
+        
+        if (favoriteWords.length === 0) {
+            favoritesList.innerHTML = '<div class="empty-state">暂无收藏单词</div>';
+        } else {
+            // 生成收藏单词列表
+            favoritesList.innerHTML = favoriteWords.map(word => `
+                <div class="favorite-item">
+                    <div class="favorite-word">${word.word}</div>
+                    <div class="favorite-meaning">${word.meaning}</div>
+                    <button class="btn btn-sm btn-danger" onclick="removeFavorite('${word.id}')">取消收藏</button>
+                </div>
+            `).join('');
+        }
+        
+        // 显示模态框
+        modal.classList.add('active');
+        
+        // 绑定移除收藏的函数
+        window.removeFavorite = async function(wordId) {
+            try {
+                await removeFromFavorites(wordId);
+                showToast('已取消收藏', 'info');
+                // 重新显示收藏列表
+                await displayFavorites();
+            } catch (error) {
+                console.error('取消收藏失败:', error);
+                showToast('取消收藏失败', 'error');
+            }
+        };
+    } catch (error) {
+        console.error('获取收藏单词失败:', error);
+        favoritesList.innerHTML = '<div class="error-state">加载失败，请重试</div>';
+    }
+}

@@ -890,18 +890,7 @@ h4 {
     border: 1px solid var(--border-color);
 }
 
-/* 统计信息样式 */
-.stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: var(--spacing-md);
-    margin: var(--spacing-xl) 0;
-    padding: var(--spacing-xl);
-    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border-color);
-}
+
 
 .stat-item {
     text-align: center;
@@ -952,10 +941,34 @@ h4 {
 .progress-section {
     margin: var(--spacing-xl) 0;
     padding: var(--spacing-xl);
-    background-color: #f8fafc;
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+}
+
+.progress-header {
+    text-align: center;
+}
+
+.progress-header h3 {
+    color: var(--text-primary);
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.stat-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.progress-bar-container {
+    margin-top: var(--spacing-md);
 }
 
 .progress-text {
@@ -974,7 +987,7 @@ h4 {
     font-size: 0.875rem;
 }
 
-.progress-container {
+.progress-bar {
     width: 100%;
     height: 12px;
     background-color: #e2e8f0;
@@ -984,7 +997,7 @@ h4 {
     position: relative;
 }
 
-.progress-bar {
+.progress-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
     border-radius: var(--radius-lg);
@@ -993,7 +1006,7 @@ h4 {
     overflow: hidden;
 }
 
-.progress-bar::after {
+.progress-fill::after {
     content: '';
     position: absolute;
     top: 0;
@@ -1016,6 +1029,39 @@ h4 {
     100% {
         transform: translateX(100%);
     }
+}
+
+/* 收藏单词样式 */
+.favorites-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.favorite-item {
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-md);
+    background-color: white;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.favorite-word {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.favorite-meaning {
+    color: var(--text-secondary);
+}
+
+.favorite-item .btn {
+    align-self: flex-start;
+    margin-top: var(--spacing-sm);
 }
 
 /* 复习列表样式 */

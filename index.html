@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VocabQuiz - 英语单词测试</title>
     <link rel="stylesheet" href="src/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* 键盘焦点样式 */
         :focus {
@@ -79,29 +80,33 @@
                 </ul>
             </div>
             
-            <div class="stats">
-                <div class="stat-item">
-                    <div class="stat-number" id="totalWords">0</div>
-                    <div class="stat-label">总单词数</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number" id="currentIndex">0</div>
-                    <div class="stat-label">当前进度</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number" id="knownCount">0</div>
-                    <div class="stat-label">已掌握</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number" id="reviewCount">0</div>
-                    <div class="stat-label">需复习</div>
-                </div>
-            </div>
-            
             <div class="progress-section">
-                <div class="progress-text">测试进度: <span id="progressText">0%</span></div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressBar" style="width: 0%;"></div>
+                <div class="progress-header">
+                    <h3>测试进度</h3>
+                </div>
+                <div class="stat-items">
+                    <div class="stat-item">
+                        <div class="stat-number" id="totalWords">0</div>
+                        <div class="stat-label">总单词数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="currentIndex">0</div>
+                        <div class="stat-label">当前进度</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="knownCount">0</div>
+                        <div class="stat-label">已掌握</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="reviewCount">0</div>
+                        <div class="stat-label">需复习</div>
+                    </div>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-text">进度: <span id="progressText">0%</span></div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressBar" style="width: 0%;"></div>
+                    </div>
                 </div>
             </div>
             
@@ -122,6 +127,7 @@
                 <div style="text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 20px; align-items: center;">
                     <span id="modeIndicator" class="mode-indicator">测试模式</span>
                     <button class="btn btn-sm btn-secondary" onclick="toggleShortcutHelp()" title="查看键盘快捷键">⌨️ 快捷键</button>
+                    <button class="btn btn-sm btn-warning" onclick="showFavorites()" title="查看收藏单词">❤️ 收藏</button>
                 </div>
                 <div class="word-display" id="wordDisplay">点击开始按钮开始Quiz</div>
                 <div style="margin: 10px 0; display: flex; gap: 10px; justify-content: center;">
@@ -286,6 +292,24 @@
     
     <!-- Toast消息容器 -->
     <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- 收藏单词模态框 -->
+    <div class="modal" id="favoritesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>收藏的单词</h2>
+                <button class="close-btn" onclick="closeFavoritesModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="favoritesList" class="favorites-list">
+                    <!-- 收藏单词列表将通过 JavaScript 动态生成 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeFavoritesModal()">关闭</button>
+            </div>
+        </div>
+    </div>
     
     <script type="module" src="src/js/main.js"></script>
 </body>
