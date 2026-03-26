@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocabQuiz - 英语单词测试</title>
+    <style>
+        /* 键盘焦点样式 */
+        :focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+        
+        /* 跳过导航链接 */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: var(--primary-color);
+            color: white;
+            padding: 8px;
+            z-index: 1000;
+            transition: top 0.3s;
+        }
+        
+        .skip-link:focus {
+            top: 0;
+        }
+        
+        /* 键盘按键样式 */
+        kbd {
+            background-color: #f7f7f7;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-shadow: 0 1px 1px rgba(0,0,0,.2);
+            color: #333;
+            display: inline-block;
+            font-size: .85em;
+            font-weight: 700;
+            line-height: 1;
+            padding: 2px 4px;
+            white-space: nowrap;
+        }
+    </style>
+  <script type="module" crossorigin src="./assets/index-B4KraiS8.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/app-HNOU50Kr.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-BqPuib2w.css">
+</head>
+<body>
+    <!-- 页面加载动画 -->
+    <div class="page-loading" id="pageLoading">
+        <div class="loading-spinner"></div>
+    </div>
+    <!-- 跳过导航链接，用于键盘用户 -->
+    <a href="#main-content" class="skip-link">跳过导航，直接进入内容</a>
+    <!-- 导航栏 -->
+    <nav class="navbar" role="navigation" aria-label="主导航">
+        <div class="nav-container">
+            <h1 class="nav-title">VocabQuiz</h1>
+            <ul class="nav-menu" role="menubar">
+                <li class="nav-item" role="none"><a href="#" class="nav-link active" data-page="quiz" role="menuitem" aria-current="page" tabindex="0">开始测试</a></li>
+                <li class="nav-item" role="none"><a href="#" class="nav-link" data-page="library" role="menuitem" tabindex="0">词库管理</a></li>
+                <li class="nav-item" role="none"><a href="#" class="nav-link" data-page="import" role="menuitem" tabindex="0">导入单词</a></li>
+                <li class="nav-item" role="none"><a href="#" class="nav-link" data-page="review" role="menuitem" tabindex="0">我的复习</a></li>
+            </ul>
+        </div>
+    </nav>
+    
+    <div class="container" id="main-content" role="main" aria-labelledby="page-title">
+        <!-- 测试页面 -->
+        <div id="quiz" class="page active">
+            <div class="instructions">
+                <h3>使用说明</h3>
+                <ul>
+                    <li>系统会随机显示英文单词，中文翻译默认隐藏</li>
+                    <li>如果你认识这个单词，可以点击「认识，下一个」</li>
+                    <li>如果你不认识，可以点击「查看中文」先看翻译，然后点击「不认识，标记复习」</li>
+                    <li>可以点击「跳过」直接进入下一个单词</li>
+                    <li>标记的单词会在「我的复习」页面中集中显示</li>
+                    <li>你可以通过「词库管理」页面创建和管理词库</li>
+                </ul>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-number" id="totalWords">0</div>
+                    <div class="stat-label">总单词数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="currentIndex">0</div>
+                    <div class="stat-label">当前进度</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="knownCount">0</div>
+                    <div class="stat-label">已掌握</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="reviewCount">0</div>
+                    <div class="stat-label">需复习</div>
+                </div>
+            </div>
+            
+            <div class="progress-section">
+                <div class="progress-text">测试进度: <span id="progressText">0%</span></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar" style="width: 0%;"></div>
+                </div>
+            </div>
+            
+            <!-- 学习统计图表 -->
+            <div class="charts-section" style="margin: 30px 0;">
+                <h3>学习统计</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="progressChart"></canvas>
+                    </div>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="reviewChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="quiz-section">
+                <div style="text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 20px; align-items: center;">
+                    <span id="modeIndicator" class="mode-indicator">测试模式</span>
+                    <button class="btn btn-sm btn-secondary" onclick="toggleShortcutHelp()" title="查看键盘快捷键">⌨️ 快捷键</button>
+                </div>
+                <div class="word-display" id="wordDisplay">点击开始按钮开始Quiz</div>
+                <div style="margin: 10px 0;">
+                    <button class="btn btn-info" onclick="pronounceWord()" title="听单词发音">🔊 发音</button>
+                </div>
+                <div class="chinese-display" id="chineseDisplay"></div>
+                
+                <!-- 快捷键帮助模态框 -->
+                <div id="shortcutModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 class="modal-title">键盘快捷键</h4>
+                            <button class="close-btn" onclick="toggleShortcutHelp()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <ul style="list-style: none; padding: 0;">
+                                <li style="margin-bottom: 10px; display: flex; justify-content: space-between;">
+                                    <span>认识，下一个</span>
+                                    <span><kbd>→</kbd> 或 <kbd>D</kbd></span>
+                                </li>
+                                <li style="margin-bottom: 10px; display: flex; justify-content: space-between;">
+                                    <span>上一个</span>
+                                    <span><kbd>←</kbd> 或 <kbd>A</kbd></span>
+                                </li>
+                                <li style="margin-bottom: 10px; display: flex; justify-content: space-between;">
+                                    <span>查看中文</span>
+                                    <span><kbd>空格</kbd></span>
+                                </li>
+                                <li style="margin-bottom: 10px; display: flex; justify-content: space-between;">
+                                    <span>不认识，标记复习</span>
+                                    <span><kbd>↓</kbd> 或 <kbd>S</kbd></span>
+                                </li>
+                                <li style="margin-bottom: 10px; display: flex; justify-content: space-between;">
+                                    <span>开始复习</span>
+                                    <span><kbd>R</kbd></span>
+                                </li>
+                                <li style="margin-bottom: 10px; display: flex; justify-content: space-between;">
+                                    <span>开始测试</span>
+                                    <span><kbd>T</kbd></span>
+                                </li>
+                                <li style="margin-bottom: 10px; display: flex; justify-content: space-between;">
+                                    <span>发音</span>
+                                    <span><kbd>P</kbd></span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" onclick="toggleShortcutHelp()">关闭</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 开始测试按钮 -->
+                <div id="startSection" style="text-align: center; margin: 30px 0;">
+                    <button class="btn btn-primary" onclick="startTest()" style="padding: 15px 30px; font-size: 18px;" aria-label="开始单词测试" tabindex="0">开始测试</button>
+                    <button class="btn btn-success" onclick="restartTest()" style="padding: 15px 30px; font-size: 18px; margin-left: 15px; display: none;" aria-label="重新开始测试" tabindex="0">重新测试</button>
+                </div>
+                
+                <div class="controls" id="controlsSection">
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 15px;">
+                        <button class="btn btn-info" onclick="previousWord()" aria-label="上一个单词" tabindex="0">上一个</button>
+                        <button class="btn btn-success" onclick="showChinese()" aria-label="查看中文翻译" tabindex="0">查看中文</button>
+                        <button class="btn btn-primary" onclick="knownWord()" aria-label="认识这个单词，进入下一个" tabindex="0">认识，下一个</button>
+                        <button class="btn btn-secondary" onclick="unknownWord()" aria-label="不认识这个单词，标记为复习" tabindex="0">不认识，标记复习</button>
+                        <button class="btn btn-warning" onclick="returnToMainMode()" aria-label="切换测试/复习模式" tabindex="0">切换模式</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 词库管理页面 -->
+        <div id="library" class="page">
+            <div class="library-section">
+                <h3>词库管理</h3>
+                <div class="library-controls">
+                    <button class="btn btn-primary" onclick="openCreateLibraryModal()">新建词库</button>
+                    <button class="btn btn-info" onclick="refreshLibraryList()">刷新词库</button>
+                </div>
+                <ul class="library-list" id="libraryList">
+                    <li class="empty-state">暂无词库，请新建或导入词库</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 导入单词页面 -->
+        <div id="import" class="page">
+            <div class="import-section">
+                <h3>导入单词</h3>
+                <p>选择要导入的词库，然后输入单词列表或选择JSON文件</p>
+                
+                <!-- 词库选择 -->
+                <div class="form-group">
+                    <label for="selectedLibrary">选择词库：</label>
+                    <select id="selectedLibrary">
+                        <option value="">请选择词库...</option>
+                    </select>
+                    <button class="btn btn-sm btn-info" onclick="refreshLibrarySelect()" style="margin-left: 10px;">刷新</button>
+                </div>
+                
+                <p>格式：每行一个单词，英文和中文用英文逗号分隔，例如：hello,你好 或直接粘贴JSON格式</p>
+                <div class="instructions" style="margin: 10px 0;">
+                    <h4>JSON格式示例：</h4>
+                    <pre style="background-color: #f5f5f5; padding: 10px; border-radius: 5px; font-size: 14px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">[
+  {"english": "hello", "chinese": "你好"},
+  {"english": "world", "chinese": "世界"}
+]</pre>
+                </div>
+                <textarea id="wordInput" placeholder="请输入单词列表..."></textarea>
+                <div style="margin: 10px 0;">
+                    <input type="file" id="jsonFileInput" accept=".json" style="margin-right: 10px;">
+                    <button class="btn btn-primary" onclick="loadFromJsonFile()">从本地JSON文件导入</button>
+                </div>
+                <div style="margin: 10px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="importWords()">导入文本</button>
+                    <button class="btn btn-info" onclick="loadDefaultWords()">加载默认单词</button>
+                    <button class="btn btn-warning" onclick="exportLibraryToJson()">导出当前词库JSON</button>
+                    <button class="btn btn-danger" onclick="restartTest()">重新开始测试</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 复习页面 -->
+        <div id="review" class="page">
+            <div class="review-section">
+                <h2>我的复习</h2>
+                <div style="text-align: center; margin: 15px 0; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="startReview()">开始复习</button>
+                    <button class="btn btn-danger" onclick="clearReviewList()">清除复习列表</button>
+                </div>
+                <ul class="review-list" id="reviewList">
+                    <li class="empty-state">暂无需要复习的单词</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 新建/编辑词库模态框 -->
+        <div id="libraryModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="modalTitle">新建词库</h4>
+                    <button class="close-btn" onclick="closeLibraryModal()">&times;</button>
+                </div>
+                <form id="libraryForm">
+                    <input type="hidden" id="libraryId">
+                    <div class="form-group">
+                        <label for="libraryName">词库名称</label>
+                        <input type="text" id="libraryName" required placeholder="请输入词库名称">
+                    </div>
+                    <div class="form-group">
+                        <label for="libraryDescription">词库描述</label>
+                        <textarea id="libraryDescription" rows="3" placeholder="请输入词库描述（可选）"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeLibraryModal()">取消</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast消息容器 -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+</body>
+</html>

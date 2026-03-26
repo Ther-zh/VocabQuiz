@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试问题</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        button { margin: 5px; padding: 10px; }
+        .word-display { font-size: 24px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>VocabQuiz 问题测试</h1>
+    
+    <div class="test-section">
+        <h2>测试 1: 单词切换问题</h2>
+        <p>点击按钮测试单词切换功能</p>
+        <div class="word-display" id="testWord"></div>
+        <button onclick="testWordSwitching()">测试单词切换</button>
+        <div id="wordSwitchResult" class="test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试 2: 词库导入问题</h2>
+        <p>测试词库导入功能</p>
+        <button onclick="testLibraryImport()">测试词库导入</button>
+        <div id="importResult" class="test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试 3: 模式切换问题</h2>
+        <p>测试测试模式和复习模式之间的切换</p>
+        <button onclick="testModeSwitching()">测试模式切换</button>
+        <div id="modeSwitchResult" class="test-result"></div>
+    </div>
+    
+    <script type="module">
+        import { init, setWords, knownWord, unknownWord, previousWord, startReview, returnToMainMode, showCurrentWord } from './src/js/quiz.js';
+        import { openDB, createLibrary, addWordsToLibrary, getWordsByLibraryId } from './src/js/db.js';
+        
+        // 测试数据
+        const testWords = [
+            { english: 'test', chinese: '测试' },
+            { english: 'example', chinese: '例子' },
+            { english: 'vocabulary', chinese: '词汇' },
+            { english: 'quiz', chinese: '测验' }
+        ];
+        
+        async function initTest() {
+            await openDB();
+            setWords(testWords);
+        }
+        
+        async function testWordSwitching() {
+            const resultDiv = document.getElementById('wordSwitchResult');
+            resultDiv.innerHTML = '测试中...';
+            
+            try {
+                await initTest();
+                
+                // 显示第一个单词
+                showCurrentWord();
+                const firstWord = document.getElementById('wordDisplay').textContent;
+                
+                // 点击认识，下一个
+                knownWord();
+                const secondWord = document.getElementById('wordDisplay').textContent;
+                
+                // 点击不认识，标记复习
+                unknownWord();
+                const thirdWord = document.getElementById('wordDisplay').textContent;
+                
+                // 点击上一个
+                previousWord();
+                const fourthWord = document.getElementById('wordDisplay').textContent;
+                
+                if (firstWord !== secondWord && secondWord !== thirdWord && thirdWord !== fourthWord && fourthWord === secondWord) {
+                    resultDiv.innerHTML = '✓ 单词切换测试通过';
+                    resultDiv.className = 'test-result pass';
+                } else {
+                    resultDiv.innerHTML = '✗ 单词切换测试失败';
+                    resultDiv.className = 'test-result fail';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `✗ 测试失败: ${error.message}`;
+                resultDiv.className = 'test-result fail';
+            }
+        }
+        
+        async function testLibraryImport() {
+            const resultDiv = document.getElementById('importResult');
+            resultDiv.innerHTML = '测试中...';
+            
+            try {
+                await openDB();
+                
+                // 创建测试词库
+                const libraryId = await createLibrary('测试词库', '用于测试的词库');
+                
+                // 导入单词
+                const addedCount = await addWordsToLibrary(libraryId, testWords);
+                
+                // 再次导入相同的单词（应该不会重复）
+                const addedCount2 = await addWordsToLibrary(libraryId, testWords);
+                
+                // 获取词库中的单词
+                const words = await getWordsByLibraryId(libraryId);
+                
+                if (words.length === testWords.length && addedCount === testWords.length && addedCount2 === 0) {
+                    resultDiv.innerHTML = '✓ 词库导入测试通过';
+                    resultDiv.className = 'test-result pass';
+                } else {
+                    resultDiv.innerHTML = '✗ 词库导入测试失败';
+                    resultDiv.className = 'test-result fail';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `✗ 测试失败: ${error.message}`;
+                resultDiv.className = 'test-result fail';
+            }
+        }
+        
+        async function testModeSwitching() {
+            const resultDiv = document.getElementById('modeSwitchResult');
+            resultDiv.innerHTML = '测试中...';
+            
+            try {
+                await initTest();
+                
+                // 标记一个单词为不认识
+                unknownWord();
+                
+                // 进入复习模式
+                startReview();
+                const reviewMode = document.getElementById('modeIndicator').textContent;
+                
+                // 切换回测试模式
+                returnToMainMode();
+                const testMode = document.getElementById('modeIndicator').textContent;
+                
+                if (reviewMode.includes('复习') && testMode.includes('测试')) {
+                    resultDiv.innerHTML = '✓ 模式切换测试通过';
+                    resultDiv.className = 'test-result pass';
+                } else {
+                    resultDiv.innerHTML = '✗ 模式切换测试失败';
+                    resultDiv.className = 'test-result fail';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `✗ 测试失败: ${error.message}`;
+                resultDiv.className = 'test-result fail';
+            }
+        }
+        
+        // 初始化测试
+        initTest();
+    </script>
+</body>
+</html>

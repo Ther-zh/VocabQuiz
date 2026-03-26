@@ -1,0 +1,26 @@
+{
+  "name": "vocabquiz",
+  "version": "1.0.0",
+  "description": "英语单词测试应用",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "eslint": "^10.1.0",
+    "vite": "^5.0.0"
+  },
+  "keywords": [
+    "vocabulary",
+    "quiz",
+    "english",
+    "learning"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chart.js": "^4.5.1"
+  }
+}
